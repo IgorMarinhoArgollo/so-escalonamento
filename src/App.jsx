@@ -1,7 +1,7 @@
 import './App.css';
 import { useState } from 'react';
 import FichaDoProcesso from './fichaDoProcesso';
-import PropTypes from 'prop-types';
+import GraficoGantt from './graficoGantt';
 
 function App() {
   const [processos, setProcessos] = useState([]);
@@ -9,8 +9,18 @@ function App() {
   const [quantidadeDeProcessos, setQuantidadeDeProcessos] = useState();
   const [tipoDeAlgoritmo, setTipoDeAlgoritmo] = useState('fifo')
   const [sobrecarga, setSobrecarga] = useState()
+  const [mostrarGrafico, setMostrarGrafico] = useState(false);
+
+  const handleInputChange = (e) => {
+    setMostrarGrafico(false);
+    const { id, value } = e.target;
+    if (id === "quantum") setQuantum(Number(value));
+    if (id === "sobrecarga") setSobrecarga(Number(value));
+    if (id === "quantidadeDeProcessos") setQuantidadeDeProcessos(Number(value));
+  };
 
   const handleGenerateProcessos = () => {
+    setMostrarGrafico(false);
     setProcessos(processosAnteriores => {
       // Mantém os processos existentes
       const processosAtualizados = [...processosAnteriores];
@@ -382,44 +392,7 @@ function App() {
     })));
   };
 
-  const GraficoGantt = ({ processos }) => {
-    // ... código existente ...
-    return (
-      <div className="grafico-gantt">
-        <h2 className='ganttTittle'>Gráfico de Execução</h2>
-        <div className="linha-processo">
-          <div className="clocks-container">
-            {processos[0]?.clocks.concat(['']).map((_, index) => (
-              <div key={index} className="index-position">
-                {index}
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Processos existentes */}
-        {processos.map((processo, index) => (
-          <div key={index} className="linha-processo">
-            <div className="nome-processo">{processo.nomeDoProcesso}</div>
-            <div className="clocks-container">
-              {processo.clocks.map((estado, clockIndex) => (
-                <div
-                  key={clockIndex}
-                  className={`clock-box ${estado}`}
-                  title={`P${index + 1} - Clock ${clockIndex}: ${estado}`}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  GraficoGantt.propTypes = {
-    processos: PropTypes.arrayOf(PropTypes.shape({
-      clocks: PropTypes.array.isRequired
-    })).isRequired
-  };
+  
 
   return (
     <main>
@@ -436,7 +409,7 @@ function App() {
             type="number"
             id="quantum"
             value={quantum}
-            onChange={(e) => setQuantum(Number(e.target.value))}
+            onChange={handleInputChange}
             min={1}
             required
           />
@@ -451,7 +424,7 @@ function App() {
             type="number"
             id="sobrecarga"
             value={sobrecarga}
-            onChange={(e) => setSobrecarga(Number(e.target.value))}
+            onChange={handleInputChange}
             min={0}
           />
         </div>
@@ -465,7 +438,7 @@ function App() {
             type="number"
             id="quantidadeDeProcessos"
             value={quantidadeDeProcessos}
-            onChange={(e) => setQuantidadeDeProcessos(Number(e.target.value))}
+            onChange={handleInputChange}
             min={2}
             required
           />
@@ -481,40 +454,56 @@ function App() {
 
       {/* Inputs dos processos */}
       {processos.length > 0 && (
-        <div className='proccessList'>
-          {processos.map((_, index) => (
-            <FichaDoProcesso
-              key={index}
-              setProcessos={setProcessos}
-              processos={processos}
-              index={index}
-            />
-          ))}
+        <div>
+          <h3>Processos</h3>
+          <div className='proccessList'>
+            {processos.map((processo, index) => (
+              <FichaDoProcesso
+                key={index}
+                setProcessos={setProcessos}
+                processos={processos}
+                index={index}
+                setMostrarGrafico={setMostrarGrafico}
+              />
+            ))}
+          </div>
         </div>
       )}
 
       {/* Seleciona tipo de algoritmo */}
       <div className='typeSelector'>
         <button
-          onClick={() => setTipoDeAlgoritmo('fifo')}
+          onClick={() => {
+            setMostrarGrafico(false);
+            setTipoDeAlgoritmo('fifo');
+          }}
           className={tipoDeAlgoritmo === 'fifo' ? 'active' : ''}
         >
           FIFO
         </button>
         <button
-          onClick={() => setTipoDeAlgoritmo('sjf')}
+          onClick={() => {
+            setMostrarGrafico(false);
+            setTipoDeAlgoritmo('sjf');
+          }}
           className={tipoDeAlgoritmo === 'sjf' ? 'active' : ''}
         >
           SJF
         </button>
         <button
-          onClick={() => setTipoDeAlgoritmo('rr')}
+          onClick={() => {
+            setMostrarGrafico(false);
+            setTipoDeAlgoritmo('rr');
+          }}
           className={tipoDeAlgoritmo === 'rr' ? 'active' : ''}
         >
           Round Robin
         </button>
         <button
-          onClick={() => setTipoDeAlgoritmo('edf')}
+          onClick={() => {
+            setMostrarGrafico(false);
+            setTipoDeAlgoritmo('edf');
+          }}
           className={tipoDeAlgoritmo === 'edf' ? 'active' : ''}
         >
           EDF
@@ -525,42 +514,55 @@ function App() {
       <button
         className='basicButton'
         onClick={() => {
-          switch (tipoDeAlgoritmo) {
-            case 'fifo':
-              calcularFIFO();
-              break;
-            case 'sjf':
-              calcularSJF();
-              break;
-            case 'rr':
-              calcularRoundRobin();
-              break;
-            case 'edf':
-              calcularEDF();
-              break;
-            default:
-              break;
-          }
+          // Verifica e define valores default
+          if (!quantum) setQuantum(1);
+          if (sobrecarga === undefined) setSobrecarga(0);
+
+          // Atualiza os processos com valores default
+          const processosAtualizados = processos.map((processo, index) => {
+            const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
+            console.log('Nome antes:', processo.nomeDoProcesso); // Debug
+            const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
+            console.log('Nome depois:', novoNome); // Debug
+
+            return {
+              ...processo,
+              nomeDoProcesso: novoNome,
+              tempoDeChegada: processo.tempoDeChegada || 0,
+              tempoDeExecucao: processo.tempoDeExecucao || 1,
+              deadLine: processo.deadLine || 0,
+              clocks: processo.clocks || []
+            };
+          });
+
+          setProcessos(processosAtualizados);
+
+          // Executa o algoritmo após a atualização dos processos
+          setTimeout(() => {
+            switch (tipoDeAlgoritmo) {
+              case 'fifo':
+                calcularFIFO();
+                break;
+              case 'sjf':
+                calcularSJF();
+                break;
+              case 'rr':
+                calcularRoundRobin();
+                break;
+              case 'edf':
+                calcularEDF();
+                break;
+              default:
+                break;
+            }
+            setMostrarGrafico(true);
+          }, 0);
         }}
       >
         Calcular Escalonamento
       </button>
 
-      {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
-      {/* {processos.length > 0 && (
-        <div className='proccessList'>
-          {processos.map((processo, index) => (
-            <p key={index}>
-              Processo {index + 1}: {JSON.stringify(processo)}
-            </p>
-          ))}
-          <p>{tipoDeAlgoritmo}</p>
-          <p>{sobrecarga}</p>
-        </div>
-      )} */}
-
-
-      {(processos.length > 0 && processos[0].clocks) && (
+      {(processos.length > 0 && processos[0].clocks && mostrarGrafico) && (
         <div className="gantt-container">
           <GraficoGantt processos={processos} />
         </div>

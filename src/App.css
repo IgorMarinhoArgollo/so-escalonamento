@@ -36,6 +36,11 @@ h1 {
 
 .proccessDiv {
   width: 250px;
+  border: solid 2px #000;
+  border-radius: 5px;
+  padding: 15px;
+  font-weight: bold;
+  background-color: #547e7d;
 }
 
 .inputDiv {
@@ -76,7 +81,14 @@ input {
 
 .gantt-container {
   margin-top: 20px;
+  padding-bottom: 25px;
   display: flex;
+  justify-content: center;
+}
+
+.grafico {
+  display: flex;
+  flex-direction: column;
   justify-content: center;
 }
 
@@ -99,6 +111,7 @@ input {
 .linha-processo {
   display: flex;
   align-items: center;
+  justify-content: center;
   margin: 5px 0;
 }
 
@@ -123,8 +136,8 @@ input {
   height: 10px;
   justify-content: center;
   display: flex;
-  transform: translateX(7px);
   font-size: 8px;
+  transform: translateX(10px);
 }
 
 .clocks-container {
@@ -138,25 +151,46 @@ input {
   border: 1px solid #000;
 }
 
-/* Estados dos processos */
-.clock-box.executando {
-  background-color: #4CAF50;
+.executando {
+  background-color: #0cf314;
 }
 
-.clock-box.espera {
-  background-color: #FFC107;
+.espera {
+  background-color: #f7f31d;
 }
 
-.clock-box.sobrecarga {
-  background-color: #F44336;
+.sobrecarga {
+  background-color: #fb1807;
 }
 
-.clock-box.executando-dead {
-  background-color: #4CAF50;
-  background-image: linear-gradient(45deg, rgba(255, 0, 0, 0.5) 25%, transparent 25%);
+.executando-dead {
+  background-color: #2e8831;
 }
 
-.clock-box.espera-dead {
-  background-color: #FFC107;
-  background-image: linear-gradient(45deg, rgba(255, 0, 0, 0.5) 25%, transparent 25%);
+.espera-dead {
+  background-color: #b4963f;
+}
+
+.sobrecarga-dead {
+  background-color: #943029;
+}
+
+.legendas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  justify-content: center;
+  margin-left: 15px;
+}
+
+.itemLegenda {
+  align-items: center;
+  display: flex;
+  gap: 5px;
+  font-size: 8px;
+  margin-top: 7px;
+}
+
+h3 {
+  display: flex;
+  justify-content: center;
 }
