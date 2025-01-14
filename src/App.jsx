@@ -24,7 +24,7 @@ function App() {
           tempoDeChegada: 0,
           tempoDeExecucao: 0,
           deadLine: 0,
-          clocs: []
+          clocks: []
         }));
         return [...processosAtualizados, ...novosProcessos];
       }
@@ -32,6 +32,353 @@ function App() {
       // Se precisar remover processos
       return processosAtualizados.slice(0, quantidadeDeProcessos);
     });
+  };
+
+  const calcularFIFO = () => {
+    // Cria uma cópia dos processos com os campos necessários
+    const processosCalculados = processos.map(p => ({
+      ...p,
+      clocks: [],
+      tempoRestante: p.tempoDeExecucao,
+      deadlineEstourado: false
+    }));
+
+    // Ordena os processos por tempo de chegada
+    processosCalculados.sort((a, b) => a.tempoDeChegada - b.tempoDeChegada);
+
+    let tempoAtual = 0;
+    let processosFinalizados = 0;
+
+    // Continua até que todos os processos sejam finalizados
+    while (processosFinalizados < processosCalculados.length) {
+      // Encontra o próximo processo que já chegou e ainda não terminou
+      const processoAtual = processosCalculados.find(p =>
+        p.tempoDeChegada <= tempoAtual &&
+        p.tempoRestante > 0
+      );
+
+      // Para cada processo, atualiza seu estado no clock atual
+      processosCalculados.forEach(processo => {
+        // Verifica se o deadline foi estourado
+        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+          processo.deadlineEstourado = true;
+        }
+
+        // Define o estado do processo no clock atual
+        if (processo.tempoDeChegada > tempoAtual) {
+          // Processo ainda não chegou
+          processo.clocks[tempoAtual] = '';
+        } else if (processo === processoAtual) {
+          // Processo está executando
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'executando - dead'
+            : 'executando';
+          processo.tempoRestante--;
+
+          // Verifica se o processo terminou
+          if (processo.tempoRestante === 0) {
+            processosFinalizados++;
+          }
+        } else if (processo.tempoRestante > 0) {
+          // Processo está esperando
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'espera - dead'
+            : 'espera';
+        } else {
+          // Processo já terminou
+          processo.clocks[tempoAtual] = '';
+        }
+      });
+
+      tempoAtual++;
+    }
+
+    // Atualiza o estado com os processos calculados
+    setProcessos(processosCalculados.map(p => ({
+      ...p,
+      clocks: p.clocks
+    })));
+  };
+
+  const calcularSJF = () => {
+    // Cria uma cópia dos processos com os campos necessários
+    const processosCalculados = processos.map(p => ({
+      ...p,
+      clocks: [],
+      tempoRestante: p.tempoDeExecucao,
+      deadlineEstourado: false
+    }));
+
+    let tempoAtual = 0;
+    let processosFinalizados = 0;
+    let processoAtualEmExecucao = null;
+
+    while (processosFinalizados < processosCalculados.length) {
+      // Se não há processo em execução, procura o próximo
+      if (!processoAtualEmExecucao) {
+        // Encontra todos os processos que já chegaram e ainda não terminaram
+        const processosDisponiveis = processosCalculados.filter(p =>
+          p.tempoDeChegada <= tempoAtual &&
+          p.tempoRestante > 0
+        );
+
+        if (processosDisponiveis.length > 0) {
+          // Seleciona o processo com menor tempo restante
+          processoAtualEmExecucao = processosDisponiveis.reduce((menor, atual) =>
+            atual.tempoRestante < menor.tempoRestante ? atual : menor
+          );
+        }
+      }
+
+      // Atualiza o estado de cada processo
+      processosCalculados.forEach(processo => {
+        // Verifica se o deadline foi estourado
+        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+          processo.deadlineEstourado = true;
+        }
+
+        // Define o estado do processo no clock atual
+        if (processo.tempoDeChegada > tempoAtual) {
+          // Processo ainda não chegou
+          processo.clocks[tempoAtual] = '';
+        } else if (processo === processoAtualEmExecucao) {
+          // Processo está executando
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'executando - dead'
+            : 'executando';
+          processo.tempoRestante--;
+
+          // Verifica se o processo terminou
+          if (processo.tempoRestante === 0) {
+            processosFinalizados++;
+            processoAtualEmExecucao = null; // Libera para escolher próximo processo
+          }
+        } else if (processo.tempoRestante > 0) {
+          // Processo está esperando
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'espera - dead'
+            : 'espera';
+        } else {
+          // Processo já terminou
+          processo.clocks[tempoAtual] = '';
+        }
+      });
+
+      tempoAtual++;
+    }
+
+    // Atualiza o estado com os processos calculados
+    setProcessos(processosCalculados.map(p => ({
+      ...p,
+      clocks: p.clocks
+    })));
+  };
+
+  const calcularRoundRobin = () => {
+    const processosCalculados = processos.map(p => ({
+      ...p,
+      clocks: [],
+      tempoRestante: p.tempoDeExecucao,
+      deadlineEstourado: false,
+      quantumRestante: quantum // adiciona controle do quantum
+    }));
+
+    let tempoAtual = 0;
+    let processosFinalizados = 0;
+    let emSobrecarga = false;
+    let tempoDeSobrecargaRestante = 0;
+    let ultimoProcessoExecutado = null;
+
+    while (processosFinalizados < processosCalculados.length) {
+      // Verifica se está em período de sobrecarga
+      if (emSobrecarga) {
+        // Marca todos os processos como em sobrecarga
+        processosCalculados.forEach(processo => {
+          // Verifica deadline
+          if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+            processo.deadlineEstourado = true;
+          }
+
+          if (processo.tempoDeChegada <= tempoAtual) {
+            processo.clocks[tempoAtual] = 'sobrecarga';
+          } else {
+            processo.clocks[tempoAtual] = '';
+          }
+        });
+
+        tempoDeSobrecargaRestante--;
+        if (tempoDeSobrecargaRestante === 0) {
+          emSobrecarga = false;
+        }
+        tempoAtual++;
+        continue;
+      }
+
+      // Encontra próximo processo a ser executado
+      const processosDisponiveis = processosCalculados.filter(p =>
+        p.tempoDeChegada <= tempoAtual &&
+        p.tempoRestante > 0
+      );
+
+      let processoAtual = null;
+      if (processosDisponiveis.length > 0) {
+        if (ultimoProcessoExecutado) {
+          // Procura o próximo processo após o último executado
+          const indexUltimo = processosDisponiveis.indexOf(ultimoProcessoExecutado);
+          if (indexUltimo !== -1 && indexUltimo < processosDisponiveis.length - 1) {
+            processoAtual = processosDisponiveis[indexUltimo + 1];
+          } else {
+            processoAtual = processosDisponiveis[0];
+          }
+        } else {
+          processoAtual = processosDisponiveis[0];
+        }
+      }
+
+      processosCalculados.forEach(processo => {
+        // Verifica deadline
+        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+          processo.deadlineEstourado = true;
+        }
+
+        if (processo.tempoDeChegada > tempoAtual) {
+          processo.clocks[tempoAtual] = '';
+        } else if (processo === processoAtual) {
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'executando - dead'
+            : 'executando';
+          processo.tempoRestante--;
+          processo.quantumRestante--;
+
+          // Verifica se terminou execução ou quantum
+          if (processo.tempoRestante === 0) {
+            processosFinalizados++;
+            ultimoProcessoExecutado = null;
+          } else if (processo.quantumRestante === 0) {
+            // Prepara sobrecarga se houver mais processos esperando
+            if (processosDisponiveis.length > 1 && sobrecarga > 0) {
+              emSobrecarga = true;
+              tempoDeSobrecargaRestante = sobrecarga;
+            }
+            processo.quantumRestante = quantum;
+            ultimoProcessoExecutado = processo;
+          } else {
+            ultimoProcessoExecutado = processo;
+          }
+        } else if (processo.tempoRestante > 0) {
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'espera - dead'
+            : 'espera';
+        } else {
+          processo.clocks[tempoAtual] = '';
+        }
+      });
+
+      tempoAtual++;
+    }
+
+    setProcessos(processosCalculados.map(p => ({
+      ...p,
+      clocks: p.clocks
+    })));
+  };
+
+  const calcularEDF = () => {
+    const processosCalculados = processos.map(p => ({
+      ...p,
+      clocks: [],
+      tempoRestante: p.tempoDeExecucao,
+      deadlineEstourado: false,
+      deadlineAbsoluto: p.tempoDeChegada + p.deadLine // deadline absoluto para comparação
+    }));
+
+    let tempoAtual = 0;
+    let processosFinalizados = 0;
+    let emSobrecarga = false;
+    let tempoDeSobrecargaRestante = 0;
+    let ultimoProcessoExecutado = null;
+
+    while (processosFinalizados < processosCalculados.length) {
+      // Verifica se está em período de sobrecarga
+      if (emSobrecarga) {
+        processosCalculados.forEach(processo => {
+          // Verifica deadline
+          if (tempoAtual >= processo.deadlineAbsoluto) {
+            processo.deadlineEstourado = true;
+          }
+
+          if (processo.tempoDeChegada <= tempoAtual) {
+            processo.clocks[tempoAtual] = 'sobrecarga';
+          } else {
+            processo.clocks[tempoAtual] = '';
+          }
+        });
+
+        tempoDeSobrecargaRestante--;
+        if (tempoDeSobrecargaRestante === 0) {
+          emSobrecarga = false;
+        }
+        tempoAtual++;
+        continue;
+      }
+
+      // Encontra processos disponíveis (que já chegaram e não terminaram)
+      const processosDisponiveis = processosCalculados.filter(p =>
+        p.tempoDeChegada <= tempoAtual &&
+        p.tempoRestante > 0
+      );
+
+      // Seleciona o processo com menor deadline absoluto
+      const processoAtual = processosDisponiveis.length > 0
+        ? processosDisponiveis.reduce((menor, atual) =>
+          atual.deadlineAbsoluto < menor.deadlineAbsoluto ? atual : menor
+        )
+        : null;
+
+      // Se houve troca de processo e tem sobrecarga
+      if (processoAtual && ultimoProcessoExecutado &&
+        processoAtual !== ultimoProcessoExecutado &&
+        sobrecarga > 0) {
+        emSobrecarga = true;
+        tempoDeSobrecargaRestante = sobrecarga;
+        ultimoProcessoExecutado = processoAtual;
+        continue;
+      }
+
+      processosCalculados.forEach(processo => {
+        // Verifica deadline
+        if (tempoAtual >= processo.deadlineAbsoluto) {
+          processo.deadlineEstourado = true;
+        }
+
+        if (processo.tempoDeChegada > tempoAtual) {
+          processo.clocks[tempoAtual] = '';
+        } else if (processo === processoAtual) {
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'executando - dead'
+            : 'executando';
+          processo.tempoRestante--;
+
+          if (processo.tempoRestante === 0) {
+            processosFinalizados++;
+          }
+          ultimoProcessoExecutado = processo;
+        } else if (processo.tempoRestante > 0) {
+          processo.clocks[tempoAtual] = processo.deadlineEstourado
+            ? 'espera - dead'
+            : 'espera';
+        } else {
+          processo.clocks[tempoAtual] = '';
+        }
+      });
+
+      tempoAtual++;
+    }
+
+    setProcessos(processosCalculados.map(p => ({
+      ...p,
+      clocks: p.clocks
+    })));
   };
 
   return (
@@ -66,7 +413,6 @@ function App() {
             value={sobrecarga}
             onChange={(e) => setSobrecarga(Number(e.target.value))}
             min={0}
-            required
           />
         </div>
 
@@ -80,7 +426,7 @@ function App() {
             id="quantidadeDeProcessos"
             value={quantidadeDeProcessos}
             onChange={(e) => setQuantidadeDeProcessos(Number(e.target.value))}
-            min={0}
+            min={2}
             required
           />
         </div>
@@ -119,7 +465,7 @@ function App() {
           <p>{sobrecarga}</p>
         </div>
       )}
-
+      {/* Seleciona tipo de algoritmo */}
       <div className='typeSelector'>
         <button
           onClick={() => setTipoDeAlgoritmo('fifo')}
@@ -146,6 +492,31 @@ function App() {
           EDF
         </button>
       </div>
+      
+      {/* Botão ativar cálculo */}
+      <button
+        className='basicButton'
+        onClick={() => {
+          switch (tipoDeAlgoritmo) {
+            case 'fifo':
+              calcularFIFO();
+              break;
+            case 'sjf':
+              calcularSJF();
+              break;
+            case 'rr':
+              calcularRoundRobin();
+              break;
+            case 'edf':
+              calcularEDF();
+              break;
+            default:
+              break;
+          }
+        }}
+      >
+        Calcular Escalonamento
+      </button>
 
     </main>
   );
