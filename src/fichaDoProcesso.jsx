@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) { // Adicionado setMostrarGrafico
+function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) { 
   const [formData, setFormData] = useState({
     nomeDoProcesso: String.fromCharCode(65 + index),
     tempoDeChegada: '',
@@ -24,7 +24,7 @@ function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) 
   }, [processos, index]);
 
   const handleChange = (e) => {
-    setMostrarGrafico(false); // Adicionada esta linha
+    setMostrarGrafico(false); 
     const { name, value } = e.target;
     const novoFormData = { ...formData, [name]: value };
     setFormData(novoFormData);

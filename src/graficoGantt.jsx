@@ -1,7 +1,13 @@
 import PropTypes from 'prop-types';
 
-const GraficoGantt = ({ processos }) => {
-  // ... código existente ...
+const GraficoGantt = ({ processos, animationTime }) => {
+    const animarLinha = () => {
+      const animations = document.querySelectorAll('.animation');
+      animations.forEach(animation => {
+        animation.style.transition = `transform ${animationTime}ms linear`;
+        animation.style.transform = 'translateX(100%)';
+      });
+    };
   return (
     <div className="grafico-gantt">
       <div className='grafico'>
@@ -21,6 +27,7 @@ const GraficoGantt = ({ processos }) => {
         <div key={index} className="linha-processo">
           <div className="nome-processo">{processo.nomeDoProcesso}</div>
           <div className="clocks-container">
+            <div className='animation'></div>
             {processo.clocks.map((estado, clockIndex) => (
               <div
                 key={clockIndex}
@@ -65,7 +72,8 @@ const GraficoGantt = ({ processos }) => {
 GraficoGantt.propTypes = {
   processos: PropTypes.arrayOf(PropTypes.shape({
     clocks: PropTypes.array.isRequired
-  })).isRequired
+  })).isRequired,
+ animationTime: PropTypes.number
 };
 
 export default GraficoGantt

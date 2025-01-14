@@ -10,6 +10,7 @@ function App() {
   const [tipoDeAlgoritmo, setTipoDeAlgoritmo] = useState('fifo')
   const [sobrecarga, setSobrecarga] = useState()
   const [mostrarGrafico, setMostrarGrafico] = useState(false);
+  const [animationTime, setAnimationTime] = useState(1);
 
   const handleInputChange = (e) => {
     setMostrarGrafico(false);
@@ -17,6 +18,7 @@ function App() {
     if (id === "quantum") setQuantum(Number(value));
     if (id === "sobrecarga") setSobrecarga(Number(value));
     if (id === "quantidadeDeProcessos") setQuantidadeDeProcessos(Number(value));
+    if (id === "animationTime") setAnimationTime(Number(value));
   };
 
   const handleGenerateProcessos = () => {
@@ -62,6 +64,13 @@ function App() {
 
     // Continua até que todos os processos sejam finalizados
     while (processosFinalizados < processosCalculados.length) {
+      // Atualiza o status de deadline para todos os processos primeiro
+      processosCalculados.forEach(processo => {
+        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+          processo.deadlineEstourado = true;
+        }
+      });
+
       // Encontra o próximo processo que já chegou e ainda não terminou
       const processoAtual = processosCalculados.find(p =>
         p.tempoDeChegada <= tempoAtual &&
@@ -70,33 +79,22 @@ function App() {
 
       // Para cada processo, atualiza seu estado no clock atual
       processosCalculados.forEach(processo => {
-        // Verifica se o deadline foi estourado
-        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
-          processo.deadlineEstourado = true;
-        }
-
-        // Define o estado do processo no clock atual
         if (processo.tempoDeChegada > tempoAtual) {
-          // Processo ainda não chegou
           processo.clocks[tempoAtual] = '';
         } else if (processo === processoAtual) {
-          // Processo está executando
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'executando - dead'
+            ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
 
-          // Verifica se o processo terminou
           if (processo.tempoRestante === 0) {
             processosFinalizados++;
           }
         } else if (processo.tempoRestante > 0) {
-          // Processo está esperando
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'espera - dead'
+            ? 'espera-dead'
             : 'espera';
         } else {
-          // Processo já terminou
           processo.clocks[tempoAtual] = '';
         }
       });
@@ -155,7 +153,7 @@ function App() {
         } else if (processo === processoAtualEmExecucao) {
           // Processo está executando
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'executando - dead'
+            ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
 
@@ -167,7 +165,7 @@ function App() {
         } else if (processo.tempoRestante > 0) {
           // Processo está esperando
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'espera - dead'
+            ? 'espera-dead'
             : 'espera';
         } else {
           // Processo já terminou
@@ -256,7 +254,7 @@ function App() {
           processo.clocks[tempoAtual] = '';
         } else if (processo === processoAtual) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'executando - dead'
+            ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
           processo.quantumRestante--;
@@ -278,7 +276,7 @@ function App() {
           }
         } else if (processo.tempoRestante > 0) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'espera - dead'
+            ? 'espera-dead'
             : 'espera';
         } else {
           processo.clocks[tempoAtual] = '';
@@ -366,7 +364,7 @@ function App() {
           processo.clocks[tempoAtual] = '';
         } else if (processo === processoAtual) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'executando - dead'
+            ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
 
@@ -376,7 +374,7 @@ function App() {
           ultimoProcessoExecutado = processo;
         } else if (processo.tempoRestante > 0) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
-            ? 'espera - dead'
+            ? 'espera-dead'
             : 'espera';
         } else {
           processo.clocks[tempoAtual] = '';
@@ -391,8 +389,6 @@ function App() {
       clocks: p.clocks
     })));
   };
-
-  
 
   return (
     <main>
@@ -443,6 +439,24 @@ function App() {
             required
           />
         </div>
+
+
+        {/* tempo de animação */}
+        <div>
+          <label htmlFor="animationTime">
+            Temp. Animação (seg):
+          </label>
+          <input
+            type="number"
+            id="animationTime"
+            value={animationTime}
+            onChange={handleInputChange}
+            min={0.1}
+            step={0.1}
+            required
+          />
+        </div>
+
       </div>
 
       {/* Botão gerador das fichas de processo */}
@@ -564,9 +578,22 @@ function App() {
 
       {(processos.length > 0 && processos[0].clocks && mostrarGrafico) && (
         <div className="gantt-container">
-          <GraficoGantt processos={processos} />
+          <GraficoGantt processos={processos} animationTime={animationTime}/>
         </div>
       )}
+
+      {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
+     {/*  {processos.length > 0 && (
+        <div className='proccessList'>
+          {processos.map((processo, index) => (
+            <p key={index}>
+              Processo {index + 1}: {JSON.stringify(processo)}
+            </p>
+          ))}
+          <p>{tipoDeAlgoritmo}</p>
+          <p>{sobrecarga}</p>
+        </div>
+      )} */}
 
     </main>
   );
