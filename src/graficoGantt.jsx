@@ -1,13 +1,19 @@
 import PropTypes from 'prop-types';
+import { forwardRef, useImperativeHandle } from 'react';
 
-const GraficoGantt = ({ processos, animationTime }) => {
+
+const GraficoGantt = forwardRef(function GraficoGantt({ processos, animationTime }, ref) {
     const animarLinha = () => {
       const animations = document.querySelectorAll('.animation');
       animations.forEach(animation => {
-        animation.style.transition = `transform ${animationTime}ms linear`;
+        animation.style.transition = `transform ${animationTime}000ms linear`;
         animation.style.transform = 'translateX(100%)';
       });
     };
+  
+  useImperativeHandle(ref, () => ({
+    animarLinha
+  }));
   return (
     <div className="grafico-gantt">
       <div className='grafico'>
@@ -67,7 +73,7 @@ const GraficoGantt = ({ processos, animationTime }) => {
     </div>
     </div>
   );
-};
+});
 
 GraficoGantt.propTypes = {
   processos: PropTypes.arrayOf(PropTypes.shape({

@@ -2,8 +2,12 @@ import './App.css';
 import { useState } from 'react';
 import FichaDoProcesso from './fichaDoProcesso';
 import GraficoGantt from './graficoGantt';
+import { useRef } from 'react';
+
 
 function App() {
+  const graficoRef = useRef();
+
   const [processos, setProcessos] = useState([]);
   const [quantum, setQuantum] = useState(1);
   const [quantidadeDeProcessos, setQuantidadeDeProcessos] = useState();
@@ -66,7 +70,7 @@ function App() {
     while (processosFinalizados < processosCalculados.length) {
       // Atualiza o status de deadline para todos os processos primeiro
       processosCalculados.forEach(processo => {
-        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+        if (processo.deadLine > 0 && tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
           processo.deadlineEstourado = true;
         }
       });
@@ -91,7 +95,7 @@ function App() {
             processosFinalizados++;
           }
         } else if (processo.tempoRestante > 0) {
-          processo.clocks[tempoAtual] = processo.deadlineEstourado
+          processo.clocks[tempoAtual] = (processo.deadLine > 0 && processo.deadlineEstourado)
             ? 'espera-dead'
             : 'espera';
         } else {
@@ -141,8 +145,7 @@ function App() {
 
       // Atualiza o estado de cada processo
       processosCalculados.forEach(processo => {
-        // Verifica se o deadline foi estourado
-        if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
+        if (processo.deadLine > 0 && tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
           processo.deadlineEstourado = true;
         }
 
@@ -151,8 +154,7 @@ function App() {
           // Processo ainda não chegou
           processo.clocks[tempoAtual] = '';
         } else if (processo === processoAtualEmExecucao) {
-          // Processo está executando
-          processo.clocks[tempoAtual] = processo.deadlineEstourado
+          processo.clocks[tempoAtual] = (processo.deadLine > 0 && processo.deadlineEstourado)
             ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
@@ -160,11 +162,10 @@ function App() {
           // Verifica se o processo terminou
           if (processo.tempoRestante === 0) {
             processosFinalizados++;
-            processoAtualEmExecucao = null; // Libera para escolher próximo processo
+            processoAtualEmExecucao = null;
           }
         } else if (processo.tempoRestante > 0) {
-          // Processo está esperando
-          processo.clocks[tempoAtual] = processo.deadlineEstourado
+          processo.clocks[tempoAtual] = (processo.deadLine > 0 && processo.deadlineEstourado)
             ? 'espera-dead'
             : 'espera';
         } else {
@@ -176,7 +177,7 @@ function App() {
       tempoAtual++;
     }
 
-    // Atualiza o estado com os processos calculados
+
     setProcessos(processosCalculados.map(p => ({
       ...p,
       clocks: p.clocks
@@ -571,6 +572,10 @@ function App() {
             }
             setMostrarGrafico(true);
           }, 0);
+
+          setTimeout(() => {
+            graficoRef.current?.animarLinha();
+          }, 100);
         }}
       >
         Calcular Escalonamento
@@ -578,7 +583,11 @@ function App() {
 
       {(processos.length > 0 && processos[0].clocks && mostrarGrafico) && (
         <div className="gantt-container">
-          <GraficoGantt processos={processos} animationTime={animationTime}/>
+          <GraficoGantt 
+            ref={graficoRef}
+            processos={processos} 
+            animationTime={animationTime}
+          />
         </div>
       )}
 
