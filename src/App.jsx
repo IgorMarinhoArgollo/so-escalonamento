@@ -1,6 +1,7 @@
 import './App.css';
 import { useState } from 'react';
 import FichaDoProcesso from './fichaDoProcesso';
+import PropTypes from 'prop-types';
 
 function App() {
   const [processos, setProcessos] = useState([]);
@@ -381,6 +382,45 @@ function App() {
     })));
   };
 
+  const GraficoGantt = ({ processos }) => {
+    // ... código existente ...
+    return (
+      <div className="grafico-gantt">
+        <h2 className='ganttTittle'>Gráfico de Execução</h2>
+        <div className="linha-processo">
+          <div className="clocks-container">
+            {processos[0]?.clocks.concat(['']).map((_, index) => (
+              <div key={index} className="index-position">
+                {index}
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Processos existentes */}
+        {processos.map((processo, index) => (
+          <div key={index} className="linha-processo">
+            <div className="nome-processo">{processo.nomeDoProcesso}</div>
+            <div className="clocks-container">
+              {processo.clocks.map((estado, clockIndex) => (
+                <div
+                  key={clockIndex}
+                  className={`clock-box ${estado}`}
+                  title={`P${index + 1} - Clock ${clockIndex}: ${estado}`}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  GraficoGantt.propTypes = {
+    processos: PropTypes.arrayOf(PropTypes.shape({
+      clocks: PropTypes.array.isRequired
+    })).isRequired
+  };
+
   return (
     <main>
       <h1>Escalonador de Processos</h1>
@@ -453,18 +493,6 @@ function App() {
         </div>
       )}
 
-      {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
-      {processos.length > 0 && (
-        <div className='proccessList'>
-          {processos.map((processo, index) => (
-            <p key={index}>
-              Processo {index + 1}: {JSON.stringify(processo)}
-            </p>
-          ))}
-          <p>{tipoDeAlgoritmo}</p>
-          <p>{sobrecarga}</p>
-        </div>
-      )}
       {/* Seleciona tipo de algoritmo */}
       <div className='typeSelector'>
         <button
@@ -517,6 +545,26 @@ function App() {
       >
         Calcular Escalonamento
       </button>
+
+      {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
+      {/* {processos.length > 0 && (
+        <div className='proccessList'>
+          {processos.map((processo, index) => (
+            <p key={index}>
+              Processo {index + 1}: {JSON.stringify(processo)}
+            </p>
+          ))}
+          <p>{tipoDeAlgoritmo}</p>
+          <p>{sobrecarga}</p>
+        </div>
+      )} */}
+
+
+      {(processos.length > 0 && processos[0].clocks) && (
+        <div className="gantt-container">
+          <GraficoGantt processos={processos} />
+        </div>
+      )}
 
     </main>
   );

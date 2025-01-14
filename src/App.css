@@ -43,12 +43,14 @@ h1 {
   flex-direction: column;
   font-size: 12px;
 }
+
 .addProccessButton {
   display: block;
   margin: 15px auto;
   padding: 5px 20px;
   border-radius: 5px;
 }
+
 input {
   height: 35px;
   border-radius: 5px;
@@ -70,4 +72,91 @@ input {
 .typeSelector button.active {
   background-color: #81b983;
   color: white;
+}
+
+.gantt-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.grafico-gantt {
+  display: flex;
+  width: auto;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px;
+  background-color: #fff;
+  border-radius: 15px;
+}
+
+.ganttTittle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.linha-processo {
+  display: flex;
+  align-items: center;
+  margin: 5px 0;
+}
+
+.nome-processo {
+  text-align: right;
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+.index-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f0f0;
+  color: #333;
+  font-size: 0.8em;
+}
+
+.index-position {
+  border: none;
+  width: 20px;
+  height: 10px;
+  justify-content: center;
+  display: flex;
+  transform: translateX(7px);
+  font-size: 8px;
+}
+
+.clocks-container {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+.clock-box {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #000;
+}
+
+/* Estados dos processos */
+.clock-box.executando {
+  background-color: #4CAF50;
+}
+
+.clock-box.espera {
+  background-color: #FFC107;
+}
+
+.clock-box.sobrecarga {
+  background-color: #F44336;
+}
+
+.clock-box.executando-dead {
+  background-color: #4CAF50;
+  background-image: linear-gradient(45deg, rgba(255, 0, 0, 0.5) 25%, transparent 25%);
+}
+
+.clock-box.espera-dead {
+  background-color: #FFC107;
+  background-image: linear-gradient(45deg, rgba(255, 0, 0, 0.5) 25%, transparent 25%);
 }
