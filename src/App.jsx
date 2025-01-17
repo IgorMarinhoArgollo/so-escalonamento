@@ -190,90 +190,91 @@ function App() {
       clocks: [],
       tempoRestante: p.tempoDeExecucao,
       deadlineEstourado: false,
-      quantumRestante: quantum // adiciona controle do quantum
+      quantumRestante: quantum // Adiciona controle do quantum
     }));
-
+  
     let tempoAtual = 0;
     let processosFinalizados = 0;
     let emSobrecarga = false;
     let tempoDeSobrecargaRestante = 0;
-    let ultimoProcessoExecutado = null;
-
+    let filaDeExecucao = [];
+    let indexAtual = 0;
+    let processoEmSobrecarga = null; // Rastreamento do processo afetado pela sobrecarga
+  
     while (processosFinalizados < processosCalculados.length) {
       // Verifica se está em período de sobrecarga
       if (emSobrecarga) {
-        // Marca todos os processos como em sobrecarga
         processosCalculados.forEach(processo => {
-          // Verifica deadline
           if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
             processo.deadlineEstourado = true;
           }
-
-          if (processo.tempoDeChegada <= tempoAtual) {
+  
+          // Apenas o processo em sobrecarga recebe o estado 'sobrecarga'
+          if (processo === processoEmSobrecarga) {
             processo.clocks[tempoAtual] = 'sobrecarga';
+          } else if (processo.tempoRestante > 0 && processo.tempoDeChegada <= tempoAtual) {
+            processo.clocks[tempoAtual] = processo.deadlineEstourado
+              ? 'espera-dead'
+              : 'espera';
           } else {
             processo.clocks[tempoAtual] = '';
           }
         });
-
+  
         tempoDeSobrecargaRestante--;
         if (tempoDeSobrecargaRestante === 0) {
           emSobrecarga = false;
+          processoEmSobrecarga = null; // Limpa o processo em sobrecarga
         }
         tempoAtual++;
         continue;
       }
-
-      // Encontra próximo processo a ser executado
-      const processosDisponiveis = processosCalculados.filter(p =>
-        p.tempoDeChegada <= tempoAtual &&
-        p.tempoRestante > 0
+  
+      // Atualiza a fila de execução
+      filaDeExecucao = processosCalculados.filter(
+        p => p.tempoDeChegada <= tempoAtual && p.tempoRestante > 0
       );
-
-      let processoAtual = null;
-      if (processosDisponiveis.length > 0) {
-        if (ultimoProcessoExecutado) {
-          // Procura o próximo processo após o último executado
-          const indexUltimo = processosDisponiveis.indexOf(ultimoProcessoExecutado);
-          if (indexUltimo !== -1 && indexUltimo < processosDisponiveis.length - 1) {
-            processoAtual = processosDisponiveis[indexUltimo + 1];
-          } else {
-            processoAtual = processosDisponiveis[0];
-          }
-        } else {
-          processoAtual = processosDisponiveis[0];
-        }
+  
+      if (filaDeExecucao.length === 0) {
+        // Avança o tempo se nenhum processo está disponível
+        tempoAtual++;
+        continue;
       }
-
+  
+      // Seleciona o processo atual da fila
+      const processoAtual = filaDeExecucao[indexAtual % filaDeExecucao.length];
+  
       processosCalculados.forEach(processo => {
-        // Verifica deadline
         if (tempoAtual >= processo.tempoDeChegada + processo.deadLine) {
           processo.deadlineEstourado = true;
         }
-
-        if (processo.tempoDeChegada > tempoAtual) {
-          processo.clocks[tempoAtual] = '';
-        } else if (processo === processoAtual) {
+  
+        if (processo === processoAtual) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
             ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
           processo.quantumRestante--;
 
+
+          // Verifica se terminou execução ou quantum
+  
           // Verifica se terminou execução ou quantum
           if (processo.tempoRestante === 0) {
             processosFinalizados++;
-            ultimoProcessoExecutado = null;
+            filaDeExecucao = filaDeExecucao.filter(p => p !== processo);
+            indexAtual--; // Ajusta o índice ao remover o processo
           } else if (processo.quantumRestante === 0) {
-            // Prepara sobrecarga se houver mais processos esperando
-            if (processosDisponiveis.length > 1 && sobrecarga > 0) {
+            // Reinicia o quantum e aplica sobrecarga para o processo atual
+            processo.quantumRestante = quantum;
+  
+            if (sobrecarga > 0) {
               emSobrecarga = true;
               tempoDeSobrecargaRestante = sobrecarga;
+              processoEmSobrecarga = processo; // Define o processo em sobrecarga
             }
-            processo.quantumRestante = quantum;
-            ultimoProcessoExecutado = processo;
-          } else {
-            ultimoProcessoExecutado = processo;
+  
+            indexAtual++; // Move para o próximo processo
           }
         } else if (processo.tempoRestante > 0) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
@@ -283,15 +284,17 @@ function App() {
           processo.clocks[tempoAtual] = '';
         }
       });
-
+  
       tempoAtual++;
     }
-
-    setProcessos(processosCalculados.map(p => ({
-      ...p,
-      clocks: p.clocks
-    })));
-  };
+  
+    setProcessos(
+      processosCalculados.map(p => ({
+        ...p,
+        clocks: p.clocks
+      }))
+    );
+  }; 
 
   const calcularEDF = () => {
     const processosCalculados = processos.map(p => ({
