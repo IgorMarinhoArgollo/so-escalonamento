@@ -15,6 +15,9 @@ function App() {
   const [sobrecarga, setSobrecarga] = useState()
   const [mostrarGrafico, setMostrarGrafico] = useState(false);
   const [animationTime, setAnimationTime] = useState(1);
+  const [algoritmoPaginacao, setAlgoritmoPaginacao] = useState('fifo');
+  const [disco, setDisco] = useState(Array(100).fill(null));
+  const [ram, setRam] = useState(Array(50).fill(null));
 
   const handleInputChange = (e) => {
     setMostrarGrafico(false);
@@ -41,6 +44,7 @@ function App() {
           tempoDeChegada: 0,
           tempoDeExecucao: 0,
           deadLine: 0,
+          paginas: Math.floor(Math.random() * 10) + 1,
           clocks: []
         }));
         return [...processosAtualizados, ...novosProcessos];
@@ -190,7 +194,7 @@ function App() {
       clocks: [],
       tempoRestante: p.tempoDeExecucao,
       deadlineEstourado: false,
-      quantumRestante: quantum // Adiciona controle do quantum
+      quantumRestante: quantum
     }));
   
     let tempoAtual = 0;
@@ -213,7 +217,7 @@ function App() {
           if (processo === processoEmSobrecarga) {
             processo.clocks[tempoAtual] = 'sobrecarga';
           } else if (processo.tempoRestante > 0 && processo.tempoDeChegada <= tempoAtual) {
-            processo.clocks[tempoAtual] = processo.deadlineEstourado
+            processo.clocks[tempoAtual] = processo.deadlineEstourado && processo.deadLine > 0
               ? 'espera-dead'
               : 'espera';
           } else {
@@ -250,7 +254,7 @@ function App() {
         }
   
         if (processo === processoAtual) {
-          processo.clocks[tempoAtual] = processo.deadlineEstourado
+          processo.clocks[tempoAtual] = processo.deadlineEstourado && processo.deadLine > 0
             ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
@@ -277,7 +281,7 @@ function App() {
             indexAtual++; // Move para o próximo processo
           }
         } else if (processo.tempoRestante > 0) {
-          processo.clocks[tempoAtual] = processo.deadlineEstourado
+          processo.clocks[tempoAtual] = processo.deadlineEstourado && processo.deadLine > 0
             ? 'espera-dead'
             : 'espera';
         } else {
@@ -489,6 +493,7 @@ function App() {
       )}
 
       {/* Seleciona tipo de algoritmo */}
+      <h3>Algoritmo de Escalonamento</h3>
       <div className='typeSelector'>
         <button
           onClick={() => {
@@ -527,6 +532,29 @@ function App() {
           EDF
         </button>
       </div>
+
+      {/* Seleciona tipo de paginação */}
+      <h3>Algoritmo de Paginação</h3>
+      <div className='typeSelector'>
+        <button
+          onClick={() => {
+            setMostrarGrafico(false);
+            setAlgoritmoPaginacao('fifo');
+          }}
+          className={algoritmoPaginacao === 'fifo' ? 'active' : ''}
+        >
+          FIFO
+        </button>
+        <button
+          onClick={() => {
+            setMostrarGrafico(false);
+            setAlgoritmoPaginacao('lru');
+          }}
+          className={algoritmoPaginacao === 'lru' ? 'active' : ''}
+        >
+          SJF
+        </button>
+      </div>
       
       {/* Botão ativar cálculo */}
       <button
@@ -541,7 +569,6 @@ function App() {
             const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
             console.log('Nome antes:', processo.nomeDoProcesso); // Debug
             const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
-            console.log('Nome depois:', novoNome); // Debug
 
             return {
               ...processo,
@@ -553,6 +580,20 @@ function App() {
             };
           });
 
+          // Preenche o array disco
+          const novoDiscoArray = Array(120).fill(null);
+          let currentIndex = 0;
+
+          processosAtualizados.forEach(processo => {
+            for (let i = 0; i < processo.paginas; i++) {
+              if (currentIndex < 120) {
+                novoDiscoArray[currentIndex] = `${processo.nomeDoProcesso}:${i + 1}`;
+                currentIndex++;
+              }
+            }
+          });
+
+          setDisco(novoDiscoArray);
           setProcessos(processosAtualizados);
 
           // Executa o algoritmo após a atualização dos processos
@@ -579,8 +620,8 @@ function App() {
           setTimeout(() => {
             graficoRef.current?.animarLinha();
           }, 100);
-        }}
-      >
+
+        }}      >
         Calcular Escalonamento
       </button>
 
@@ -594,8 +635,39 @@ function App() {
         </div>
       )}
 
+      {mostrarGrafico && (<div className='memoria'>
+        <div className='area'>
+          <h3>DISCO</h3>
+          <div className='disco'>
+            {disco.map((e, index) => (
+              <p key={index} className='celula'>
+                {e != null ? (
+                  <>
+                    <p className='celProcName'>{e.split(':')[0]}</p>
+                    <p className='celProcIndex'>{e.split(':')[1]}</p>
+                  </>
+                ) : '-'}
+              </p>
+            ))}
+          </div>
+        </div>
+        <div className="area">
+          <h3>RAM</h3>
+          <div className='ram'>
+            {ram.map((e, index) => <p key={index} className='celula'>
+              {e != null ? (
+                <>
+                  <p className='celProcName'>{e.split(':')[0]}</p>
+                  <p className='celProcIndex'>{e.split(':')[1]}</p>
+                </>
+              ) : '-'}
+            </p>)}
+          </div>
+        </div>
+      </div>)}
+
       {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
-     {/*  {processos.length > 0 && (
+     {/* {processos.length > 0 && (
         <div className='proccessList'>
           {processos.map((processo, index) => (
             <p key={index}>
@@ -604,6 +676,7 @@ function App() {
           ))}
           <p>{tipoDeAlgoritmo}</p>
           <p>{sobrecarga}</p>
+          <p>{algoritmoPaginacao}</p>
         </div>
       )} */}
 

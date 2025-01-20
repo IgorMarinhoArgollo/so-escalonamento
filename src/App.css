@@ -14,6 +14,7 @@ h1 {
 
 .basicForm {
   display: flex;
+  flex-wrap: wrap;
   font-weight: 600;
   justify-content: center;
   gap: 15px;
@@ -184,6 +185,7 @@ input {
 .sobrecarga-dead {
   background-color: #943029;
 }
+
 .legendas {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -193,6 +195,7 @@ input {
   max-width: 500px;
   width: 100%;
 }
+
 .itemLegenda {
   align-items: center;
   display: flex;
@@ -204,4 +207,43 @@ input {
 h3 {
   display: flex;
   justify-content: center;
+}
+
+.memoria {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content:center;
+  gap: 25px;
+}
+
+.disco {
+ display: flex;
+ flex-wrap: wrap;
+ width: 500px;
+ padding-bottom: 100px;
+}
+
+.ram {
+  display: flex;
+  flex-wrap: wrap;
+  width: 510px;
+}
+
+.celula {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid black;
+  font-size: 35px;
+}
+
+.celProcName {
+  font-size: 22px;
+}
+
+.celProcIndex {
+  font-size: 16px;
+  margin-bottom: 8px;
 }

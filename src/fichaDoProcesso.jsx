@@ -7,6 +7,7 @@ function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) 
     tempoDeChegada: '',
     tempoDeExecucao: '',
     deadLine: '',
+    paginas: Math.floor(Math.random() * 10) + 1,
   });
 
   useEffect(() => {
@@ -19,6 +20,7 @@ function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) 
         tempoDeChegada: processo.tempoDeChegada?.toString() || '',
         tempoDeExecucao: processo.tempoDeExecucao?.toString() || '',
         deadLine: processo.deadLine?.toString() || '',
+        paginas: processo.paginas || processo.paginas?.toString(),
       });
     }
   }, [processos, index]);
@@ -34,6 +36,7 @@ function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) 
       tempoDeChegada: parseInt(novoFormData.tempoDeChegada, 10) || 0,
       tempoDeExecucao: parseInt(novoFormData.tempoDeExecucao, 10) || 0,
       deadLine: parseInt(novoFormData.deadLine, 10) || 0,
+      paginas: parseInt(novoFormData.paginas, 10) || Math.floor(Math.random() * 10) + 1,
       clocks: [],
     };
 
@@ -104,6 +107,22 @@ function FichaDoProcesso({ setProcessos, processos, index, setMostrarGrafico }) 
             id={`deadLine-${index}`}
             name="deadLine"
             value={formData.deadLine}
+            onChange={handleChange}
+            min="0"
+            required
+          />
+        </div>
+
+        {/* Paginas */}
+        <div className='inputDiv'>
+          <label htmlFor={`paginas-${index}`}>
+            # de Páginas
+          </label>
+          <input
+            type="number"
+            id={`paginas-${index}`}
+            name="paginas"
+            value={formData.paginas}
             onChange={handleChange}
             min="0"
             required
