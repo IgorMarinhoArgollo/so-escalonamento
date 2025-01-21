@@ -306,7 +306,8 @@ function App() {
       clocks: [],
       tempoRestante: p.tempoDeExecucao,
       deadlineEstourado: false,
-      deadlineAbsoluto: p.tempoDeChegada + p.deadLine // deadline absoluto para comparação
+      deadlineAbsoluto: p.tempoDeChegada + p.deadLine,
+      quantumRestante: quantum
     }));
 
     let tempoAtual = 0;
@@ -316,16 +317,18 @@ function App() {
     let ultimoProcessoExecutado = null;
 
     while (processosFinalizados < processosCalculados.length) {
-      // Verifica se está em período de sobrecarga
       if (emSobrecarga) {
         processosCalculados.forEach(processo => {
-          // Verifica deadline
-          if (tempoAtual >= processo.deadlineAbsoluto) {
+          if (tempoAtual > processo.deadlineAbsoluto) {
             processo.deadlineEstourado = true;
           }
 
-          if (processo.tempoDeChegada <= tempoAtual) {
+          if (processo === ultimoProcessoExecutado) {
             processo.clocks[tempoAtual] = 'sobrecarga';
+          } else if (processo.tempoRestante > 0 && processo.tempoDeChegada <= tempoAtual) {
+            processo.clocks[tempoAtual] = processo.deadlineEstourado
+              ? 'espera-dead'
+              : 'espera';
           } else {
             processo.clocks[tempoAtual] = '';
           }
@@ -339,48 +342,40 @@ function App() {
         continue;
       }
 
-      // Encontra processos disponíveis (que já chegaram e não terminaram)
       const processosDisponiveis = processosCalculados.filter(p =>
         p.tempoDeChegada <= tempoAtual &&
         p.tempoRestante > 0
       );
 
-      // Seleciona o processo com menor deadline absoluto
       const processoAtual = processosDisponiveis.length > 0
         ? processosDisponiveis.reduce((menor, atual) =>
           atual.deadlineAbsoluto < menor.deadlineAbsoluto ? atual : menor
         )
         : null;
 
-      // Se houve troca de processo e tem sobrecarga
-      if (processoAtual && ultimoProcessoExecutado &&
-        processoAtual !== ultimoProcessoExecutado &&
-        sobrecarga > 0) {
-        emSobrecarga = true;
-        tempoDeSobrecargaRestante = sobrecarga;
-        ultimoProcessoExecutado = processoAtual;
-        continue;
-      }
-
       processosCalculados.forEach(processo => {
-        // Verifica deadline
-        if (tempoAtual >= processo.deadlineAbsoluto) {
+        if (tempoAtual > processo.deadlineAbsoluto) {
           processo.deadlineEstourado = true;
         }
 
-        if (processo.tempoDeChegada > tempoAtual) {
-          processo.clocks[tempoAtual] = '';
-        } else if (processo === processoAtual) {
+        if (processo === processoAtual) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
             ? 'executando-dead'
             : 'executando';
           processo.tempoRestante--;
+          processo.quantumRestante--;
 
           if (processo.tempoRestante === 0) {
             processosFinalizados++;
+          } else if (processo.quantumRestante === 0) {
+            processo.quantumRestante = quantum;
+            if (sobrecarga > 0) {
+              emSobrecarga = true;
+              tempoDeSobrecargaRestante = sobrecarga;
+            }
           }
           ultimoProcessoExecutado = processo;
-        } else if (processo.tempoRestante > 0) {
+        } else if (processo.tempoRestante > 0 && processo.tempoDeChegada <= tempoAtual) {
           processo.clocks[tempoAtual] = processo.deadlineEstourado
             ? 'espera-dead'
             : 'espera';
@@ -397,6 +392,114 @@ function App() {
       clocks: p.clocks
     })));
   };
+
+  const calcularPaginacaoFIFO = () => {
+    const ramSize = 50;
+    let filaFIFO = [];
+    let novaRam = Array(ramSize).fill(null);
+
+    // Para cada clock do processo
+    const maxClocks = Math.max(...processos.map(p => p.clocks.length));
+
+    for (let clock = 0; clock < maxClocks; clock++) {
+      // Verifica qual processo está executando neste clock
+      const processoExecutando = processos.find(p =>
+        p.clocks[clock] === 'executando' || p.clocks[clock] === 'executando-dead'
+      );
+
+      if (processoExecutando) {
+        // Calcula quais páginas do processo precisam estar na RAM
+        const paginasNecessarias = Array.from(
+          { length: processoExecutando.paginas },
+          (_, i) => `${processoExecutando.nomeDoProcesso}:${i + 1}`
+        );
+
+        // Para cada página necessária
+        paginasNecessarias.forEach(pagina => {
+          // Se a página não está na RAM
+          if (!novaRam.includes(pagina)) {
+
+            // Se a RAM está cheia, remove a página mais antiga (FIFO)
+            if (filaFIFO.length >= ramSize) {
+              const paginaRemovida = filaFIFO.shift();
+              const index = novaRam.indexOf(paginaRemovida);
+              if (index !== -1) {
+                novaRam[index] = pagina;
+              }
+            } else {
+              // Se ainda há espaço na RAM
+              const indexVazio = novaRam.indexOf(null);
+              if (indexVazio !== -1) {
+                novaRam[indexVazio] = pagina;
+              }
+            }
+
+            filaFIFO.push(pagina);
+          }
+        });
+
+        // Atualiza a RAM com delay baseado no animationTime
+        setTimeout(() => {
+          setRam([...novaRam]);
+        }, clock * (animationTime * 1000));
+      }
+    }
+  };
+  
+  const calcularPaginacaoLRU = () => {
+    const ramSize = 50;
+    let novaRam = Array(ramSize).fill(null);
+    let paginasUsadas = new Map(); // Tracks last access time for each page
+
+    const maxClocks = Math.max(...processos.map(p => p.clocks.length));
+
+    for (let clock = 0; clock < maxClocks; clock++) {
+      const processoExecutando = processos.find(p =>
+        p.clocks[clock] === 'executando' || p.clocks[clock] === 'executando-dead'
+      );
+
+      if (processoExecutando) {
+        const paginasNecessarias = Array.from(
+          { length: processoExecutando.paginas },
+          (_, i) => `${processoExecutando.nomeDoProcesso}:${i + 1}`
+        );
+
+        paginasNecessarias.forEach(pagina => {
+          // Update access time for this page
+          paginasUsadas.set(pagina, clock);
+
+          if (!novaRam.includes(pagina)) {
+
+            // Find empty slot or replace LRU page
+            const indexVazio = novaRam.indexOf(null);
+
+            if (indexVazio !== -1) {
+              novaRam[indexVazio] = pagina;
+            } else {
+              // Find least recently used page
+              let lruPage = novaRam[0];
+              let lruIndex = 0;
+
+              novaRam.forEach((pag, index) => {
+                if (paginasUsadas.get(pag) < paginasUsadas.get(lruPage)) {
+                  lruPage = pag;
+                  lruIndex = index;
+                }
+              });
+
+              // Replace LRU page
+              novaRam[lruIndex] = pagina;
+            }
+          }
+        });
+
+        setTimeout(() => {
+          setRam([...novaRam]);
+        }, clock * (animationTime * 1000));
+      }
+    }
+  };
+
 
   return (
     <main>
@@ -617,14 +720,28 @@ function App() {
             setMostrarGrafico(true);
           }, 0);
 
+          // Executa o algoritmo de paginação após o escalonamento
+          setTimeout(() => {
+            switch (algoritmoPaginacao) {
+              case 'fifo':
+                calcularPaginacaoFIFO();
+                break;
+              case 'lru':
+                calcularPaginacaoLRU();
+                break;
+              default:
+                break;
+            }
+          }, 0);
+
           setTimeout(() => {
             graficoRef.current?.animarLinha();
           }, 100);
-
         }}      >
         Calcular Escalonamento
       </button>
 
+      {/* gráfico */}
       {(processos.length > 0 && processos[0].clocks && mostrarGrafico) && (
         <div className="gantt-container">
           <GraficoGantt 
@@ -635,6 +752,7 @@ function App() {
         </div>
       )}
 
+      {/* Memoria e Disco */}
       {mostrarGrafico && (<div className='memoria'>
         <div className='area'>
           <h3>DISCO</h3>
