@@ -1,5 +1,5 @@
 import './App.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FichaDoProcesso from './fichaDoProcesso';
 import GraficoGantt from './graficoGantt';
 import { useRef } from 'react';
@@ -19,8 +19,12 @@ function App() {
   const [disco, setDisco] = useState(Array(100).fill(null));
   const [ram, setRam] = useState(Array(50).fill(null));
 
+  useEffect(() => { }, [ram]); // PARA IMPLEMENTAR a ATUALIZAÇÃO
+
   const handleInputChange = (e) => {
     setMostrarGrafico(false);
+    setDisco(Array(100).fill(null));
+    setRam(Array(50).fill(null))
     const { id, value } = e.target;
     if (id === "quantum") setQuantum(Number(value));
     if (id === "sobrecarga") setSobrecarga(Number(value));
@@ -30,6 +34,8 @@ function App() {
 
   const handleGenerateProcessos = () => {
     setMostrarGrafico(false);
+    setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+    setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
     setProcessos(processosAnteriores => {
       // Mantém os processos existentes
       const processosAtualizados = [...processosAnteriores];
@@ -394,117 +400,50 @@ function App() {
   };
 
   const calcularPaginacaoFIFO = () => {
-    const ramSize = 50;
-    let filaFIFO = [];
-    let novaRam = Array(ramSize).fill(null);
+    const maxClockLength = Math.max(...processos.map(p => p.clocks.length));
+    const interval = (animationTime * 1000) / maxClockLength;
+    let ramIndex = 0;
 
-    // Para cada clock do processo
-    const maxClocks = Math.max(...processos.map(p => p.clocks.length));
+    const processarClock = (i) => {
+      if (i >= maxClockLength) return
 
-    for (let clock = 0; clock < maxClocks; clock++) {
-      // Verifica qual processo está executando neste clock
-      const processoExecutando = processos.find(p =>
-        p.clocks[clock] === 'executando' || p.clocks[clock] === 'executando-dead'
-      );
+      processos.forEach(processo => {
+        if (processo.clocks[i] === "executando" || processo.clocks[i] === "executando-dead") {
+          for (let pagina = 0; pagina < processo.paginas; pagina++) {
+            const paginaExisteNaRam = ram.some(slot =>
+              slot &&
+              slot.nomeDoProcesso === processo.nomeDoProcesso &&
+              slot.indexNoProcesso === pagina + 1
+            );
 
-      if (processoExecutando) {
-        // Calcula quais páginas do processo precisam estar na RAM
-        const paginasNecessarias = Array.from(
-          { length: processoExecutando.paginas },
-          (_, i) => `${processoExecutando.nomeDoProcesso}:${i + 1}`
-        );
-
-        // Para cada página necessária
-        paginasNecessarias.forEach(pagina => {
-          // Se a página não está na RAM
-          if (!novaRam.includes(pagina)) {
-
-            // Se a RAM está cheia, remove a página mais antiga (FIFO)
-            if (filaFIFO.length >= ramSize) {
-              const paginaRemovida = filaFIFO.shift();
-              const index = novaRam.indexOf(paginaRemovida);
-              if (index !== -1) {
-                novaRam[index] = pagina;
-              }
-            } else {
-              // Se ainda há espaço na RAM
-              const indexVazio = novaRam.indexOf(null);
-              if (indexVazio !== -1) {
-                novaRam[indexVazio] = pagina;
-              }
-            }
-
-            filaFIFO.push(pagina);
-          }
-        });
-
-        // Atualiza a RAM com delay baseado no animationTime
-        setTimeout(() => {
-          setRam([...novaRam]);
-        }, clock * (animationTime * 1000));
-      }
-    }
-  };
-  
-  const calcularPaginacaoLRU = () => {
-    const ramSize = 50;
-    let novaRam = Array(ramSize).fill(null);
-    let paginasUsadas = new Map(); // Tracks last access time for each page
-
-    const maxClocks = Math.max(...processos.map(p => p.clocks.length));
-
-    for (let clock = 0; clock < maxClocks; clock++) {
-      const processoExecutando = processos.find(p =>
-        p.clocks[clock] === 'executando' || p.clocks[clock] === 'executando-dead'
-      );
-
-      if (processoExecutando) {
-        const paginasNecessarias = Array.from(
-          { length: processoExecutando.paginas },
-          (_, i) => `${processoExecutando.nomeDoProcesso}:${i + 1}`
-        );
-
-        paginasNecessarias.forEach(pagina => {
-          // Update access time for this page
-          paginasUsadas.set(pagina, clock);
-
-          if (!novaRam.includes(pagina)) {
-
-            // Find empty slot or replace LRU page
-            const indexVazio = novaRam.indexOf(null);
-
-            if (indexVazio !== -1) {
-              novaRam[indexVazio] = pagina;
-            } else {
-              // Find least recently used page
-              let lruPage = novaRam[0];
-              let lruIndex = 0;
-
-              novaRam.forEach((pag, index) => {
-                if (paginasUsadas.get(pag) < paginasUsadas.get(lruPage)) {
-                  lruPage = pag;
-                  lruIndex = index;
-                }
+            if (!paginaExisteNaRam) {
+              setRam(prevRam => {
+                const novaRam = [...prevRam];
+                novaRam[ramIndex] = {
+                  nomeDoProcesso: processo.nomeDoProcesso,
+                  indexNoProcesso: pagina + 1
+                };
+                ramIndex = (ramIndex + 1) % novaRam.length;
+                return novaRam;
               });
-
-              // Replace LRU page
-              novaRam[lruIndex] = pagina;
             }
           }
-        });
+        }
+      });
+      setTimeout(() => processarClock(i + 1), interval);
+    };
 
-        setTimeout(() => {
-          setRam([...novaRam]);
-        }, clock * (animationTime * 1000));
-      }
-    }
+    processarClock(0);
+  };
+
+  const calcularPaginacaoLRU = () => {
+    
   };
 
 
   return (
     <main>
       <h1>Escalonador de Processos</h1>
-
       {/* Formulário de input de quantum e quantidade de processos e sobrecarga*/}
       <div className="basicForm">
         {/* quantum */}
@@ -601,6 +540,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setTipoDeAlgoritmo('fifo');
           }}
           className={tipoDeAlgoritmo === 'fifo' ? 'active' : ''}
@@ -610,6 +551,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setTipoDeAlgoritmo('sjf');
           }}
           className={tipoDeAlgoritmo === 'sjf' ? 'active' : ''}
@@ -619,6 +562,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setTipoDeAlgoritmo('rr');
           }}
           className={tipoDeAlgoritmo === 'rr' ? 'active' : ''}
@@ -628,6 +573,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setTipoDeAlgoritmo('edf');
           }}
           className={tipoDeAlgoritmo === 'edf' ? 'active' : ''}
@@ -642,6 +589,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setAlgoritmoPaginacao('fifo');
           }}
           className={algoritmoPaginacao === 'fifo' ? 'active' : ''}
@@ -651,6 +600,8 @@ function App() {
         <button
           onClick={() => {
             setMostrarGrafico(false);
+            setDisco(Array(100).fill(null)); // resetar o array disco no estado (não testado ainda)
+            setRam(Array(50).fill(null)) // resetar o array ram no estado (não testado ainda)
             setAlgoritmoPaginacao('lru');
           }}
           className={algoritmoPaginacao === 'lru' ? 'active' : ''}
@@ -670,7 +621,6 @@ function App() {
           // Atualiza os processos com valores default
           const processosAtualizados = processos.map((processo, index) => {
             const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
-            console.log('Nome antes:', processo.nomeDoProcesso); // Debug
             const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
 
             return {
@@ -690,7 +640,10 @@ function App() {
           processosAtualizados.forEach(processo => {
             for (let i = 0; i < processo.paginas; i++) {
               if (currentIndex < 120) {
-                novoDiscoArray[currentIndex] = `${processo.nomeDoProcesso}:${i + 1}`;
+                novoDiscoArray[currentIndex] = {
+                  nomeDoProcesso: processo.nomeDoProcesso,
+                  indexNoProcesso: i + 1,
+                };
                 currentIndex++;
               }
             }
@@ -732,7 +685,7 @@ function App() {
               default:
                 break;
             }
-          }, 0);
+          }, 100);
 
           setTimeout(() => {
             graficoRef.current?.animarLinha();
@@ -758,28 +711,28 @@ function App() {
           <h3>DISCO</h3>
           <div className='disco'>
             {disco.map((e, index) => (
-              <p key={index} className='celula'>
+              <div key={index} className='celula'>
                 {e != null ? (
                   <>
-                    <p className='celProcName'>{e.split(':')[0]}</p>
-                    <p className='celProcIndex'>{e.split(':')[1]}</p>
+                    <p className='celProcName'>{e.nomeDoProcesso}</p>
+                    <p className='celProcIndex'>{e.indexNoProcesso}</p>
                   </>
                 ) : '-'}
-              </p>
+              </div>
             ))}
           </div>
         </div>
         <div className="area">
           <h3>RAM</h3>
           <div className='ram'>
-            {ram.map((e, index) => <p key={index} className='celula'>
+            {ram.map((e, index) => <div key={index} className='celula'>
               {e != null ? (
                 <>
-                  <p className='celProcName'>{e.split(':')[0]}</p>
-                  <p className='celProcIndex'>{e.split(':')[1]}</p>
+                  <p className='celProcName'>{e.nomeDoProcesso}</p>
+                  <p className='celProcIndex'>{e.indexNoProcesso}</p>
                 </>
               ) : '-'}
-            </p>)}
+            </div>)}
           </div>
         </div>
       </div>)}
