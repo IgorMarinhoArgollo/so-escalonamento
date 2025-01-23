@@ -463,7 +463,71 @@ function App() {
     atualizarRam(0);
   };
 
-  const calcularPaginacaoLRU = () => { };
+  const calcularPaginacaoLRU = () => {
+    const maxClockLength = Math.max(...processos.map((p) => p.clocks.length));
+    const interval = (animationTime * 1000) / maxClockLength;
+
+    const ramSize = 50; // Tamanho da RAM
+    const lruMap = new Map(); // Mapa para gerenciar as páginas na RAM e suas últimas utilizações
+
+    // Inicializa a RAM com null
+    let novaRam = Array(ramSize).fill(null);
+
+    const atualizarRam = (clock) => {
+      if (clock >= maxClockLength) return;
+
+      processos.forEach((processo) => {
+        const estado = processo.clocks[clock];
+
+        if (estado && estado.startsWith('executando')) {
+          // Simula a execução do processo e a troca de páginas
+          for (let pagina = 0; pagina < processo.paginas; pagina++) {
+            const paginaAtual = {
+              nomeDoProcesso: processo.nomeDoProcesso,
+              indexNoProcesso: pagina + 1,
+            };
+
+            // Verifica se a página já está na RAM
+            const paginaNaRam = novaRam.find(
+              (p) =>
+                p &&
+                p.nomeDoProcesso === paginaAtual.nomeDoProcesso &&
+                p.indexNoProcesso === paginaAtual.indexNoProcesso
+            );
+
+            if (paginaNaRam) {
+              // Atualiza a última utilização da página
+              lruMap.delete(paginaAtual);
+              lruMap.set(paginaAtual, clock);
+            } else {
+              // Se a RAM estiver cheia, remove a página menos recentemente usada (LRU)
+              if (lruMap.size >= ramSize) {
+                const paginaLRU = [...lruMap.entries()].reduce((a, b) => (a[1] < b[1] ? a : b))[0];
+                lruMap.delete(paginaLRU);
+                novaRam = novaRam.map((p) =>
+                  p === paginaLRU ? null : p
+                );
+              }
+
+              // Adiciona a nova página na RAM e no mapa LRU
+              lruMap.set(paginaAtual, clock);
+              const indexLivre = novaRam.findIndex((p) => p === null);
+              novaRam[indexLivre] = paginaAtual;
+            }
+          }
+        }
+      });
+
+      // Atualiza o estado da RAM
+      setRam([...novaRam]);
+
+      // Chama a função novamente após o intervalo
+      setTimeout(() => atualizarRam(clock + 1), interval);
+    };
+
+    // Inicia a atualização da RAM
+    atualizarRam(0);
+  };
 
   
 
