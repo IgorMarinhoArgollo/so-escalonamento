@@ -18,8 +18,9 @@ function App() {
   const [algoritmoPaginacao, setAlgoritmoPaginacao] = useState('fifo');
   const [disco, setDisco] = useState(Array(100).fill(null));
   const [ram, setRam] = useState(Array(50).fill(null));
+  
 
-  useEffect(() => { }, [ram]); // PARA IMPLEMENTAR a ATUALIZAÇÃO
+  useEffect(() => { }, [ram]);
 
   const handleInputChange = (e) => {
     setMostrarGrafico(false);
@@ -31,6 +32,8 @@ function App() {
     if (id === "quantidadeDeProcessos") setQuantidadeDeProcessos(Number(value));
     if (id === "animationTime") setAnimationTime(Number(value));
   };
+
+  useEffect(() => {}, [ram]);
 
   const handleGenerateProcessos = () => {
     setMostrarGrafico(false);
@@ -400,46 +403,69 @@ function App() {
   };
 
   const calcularPaginacaoFIFO = () => {
-    const maxClockLength = Math.max(...processos.map(p => p.clocks.length));
+    const maxClockLength = Math.max(...processos.map((p) => p.clocks.length));
     const interval = (animationTime * 1000) / maxClockLength;
-    let ramIndex = 0;
 
-    const processarClock = (i) => {
-      if (i >= maxClockLength) return
+    const ramSize = 50; // Tamanho da RAM
+    const filaDePaginas = []; // Fila para gerenciar as páginas na RAM
 
-      processos.forEach(processo => {
-        if (processo.clocks[i] === "executando" || processo.clocks[i] === "executando-dead") {
+    // Inicializa a RAM com null
+    let novaRam = Array(ramSize).fill(null);
+
+    const atualizarRam = (clock) => {
+      if (clock >= maxClockLength) return;
+
+      processos.forEach((processo) => {
+        const estado = processo.clocks[clock];
+
+        if (estado && estado.startsWith('executando')) {
+          // Simula a execução do processo e a troca de páginas
           for (let pagina = 0; pagina < processo.paginas; pagina++) {
-            const paginaExisteNaRam = ram.some(slot =>
-              slot &&
-              slot.nomeDoProcesso === processo.nomeDoProcesso &&
-              slot.indexNoProcesso === pagina + 1
+            const paginaAtual = {
+              nomeDoProcesso: processo.nomeDoProcesso,
+              indexNoProcesso: pagina + 1,
+            };
+
+            // Verifica se a página já está na RAM
+            const paginaNaRam = novaRam.find(
+              (p) =>
+                p &&
+                p.nomeDoProcesso === paginaAtual.nomeDoProcesso &&
+                p.indexNoProcesso === paginaAtual.indexNoProcesso
             );
 
-            if (!paginaExisteNaRam) {
-              setRam(prevRam => {
-                const novaRam = [...prevRam];
-                novaRam[ramIndex] = {
-                  nomeDoProcesso: processo.nomeDoProcesso,
-                  indexNoProcesso: pagina + 1
-                };
-                ramIndex = (ramIndex + 1) % novaRam.length;
-                return novaRam;
-              });
+            if (!paginaNaRam) {
+              // Se a RAM estiver cheia, remove a página mais antiga (FIFO)
+              if (filaDePaginas.length >= ramSize) {
+                const paginaRemovida = filaDePaginas.shift();
+                novaRam = novaRam.map((p) =>
+                  p === paginaRemovida ? null : p
+                );
+              }
+
+              // Adiciona a nova página na RAM e na fila
+              filaDePaginas.push(paginaAtual);
+              const indexLivre = novaRam.findIndex((p) => p === null);
+              novaRam[indexLivre] = paginaAtual;
             }
           }
         }
       });
-      setTimeout(() => processarClock(i + 1), interval);
+
+      // Atualiza o estado da RAM
+      setRam([...novaRam]);
+
+      // Chama a função novamente após o intervalo
+      setTimeout(() => atualizarRam(clock + 1), interval);
     };
 
-    processarClock(0);
+    // Inicia a atualização da RAM
+    atualizarRam(0);
   };
 
-  const calcularPaginacaoLRU = () => {
-    
-  };
+  const calcularPaginacaoLRU = () => { };
 
+  
 
   return (
     <main>
@@ -689,8 +715,9 @@ function App() {
 
           setTimeout(() => {
             graficoRef.current?.animarLinha();
-          }, 100);
-        }}      >
+          }, 200);
+        }}
+      >
         Calcular Escalonamento
       </button>
 
@@ -717,7 +744,7 @@ function App() {
                     <p className='celProcName'>{e.nomeDoProcesso}</p>
                     <p className='celProcIndex'>{e.indexNoProcesso}</p>
                   </>
-                ) : '-'}
+                ) : <p>{index}</p>}
               </div>
             ))}
           </div>
@@ -731,11 +758,12 @@ function App() {
                   <p className='celProcName'>{e.nomeDoProcesso}</p>
                   <p className='celProcIndex'>{e.indexNoProcesso}</p>
                 </>
-              ) : '-'}
+              ) : <p>{index}</p>}
             </div>)}
           </div>
         </div>
       </div>)}
+
 
       {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
      {/* {processos.length > 0 && (
