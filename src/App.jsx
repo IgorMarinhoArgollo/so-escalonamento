@@ -19,8 +19,13 @@ function App() {
   const [disco, setDisco] = useState(Array(100).fill(null));
   const [ram, setRam] = useState(Array(50).fill(null));
   
+  useEffect(() => { console.log(ram), console.log(mostrarGrafico) }, [ram, mostrarGrafico]);
 
-  useEffect(() => { }, [ram]);
+  useEffect(() => {
+    if (disco.length > 0 && processos.length > 0) {
+      calcularPaginacaoFIFO();
+    }
+  }, [disco, processos]);
 
   const handleInputChange = (e) => {
     setMostrarGrafico(false);
@@ -32,8 +37,6 @@ function App() {
     if (id === "quantidadeDeProcessos") setQuantidadeDeProcessos(Number(value));
     if (id === "animationTime") setAnimationTime(Number(value));
   };
-
-  useEffect(() => {}, [ram]);
 
   const handleGenerateProcessos = () => {
     setMostrarGrafico(false);
@@ -403,7 +406,7 @@ function App() {
     const interval = (animationTime * 1000) / maxClockLength;
 
     const ramSize = 50; // Tamanho da RAM
-    const filaDePaginas = []; // Fila para gerenciar as páginas na RAM
+    const filaDePaginas = new Map(); // Mapa para gerenciar as páginas na RAM
 
     // Inicializa a RAM com null
     let novaRam = Array(ramSize).fill(null);
@@ -432,15 +435,20 @@ function App() {
 
             if (!paginaNaRam) {
               // Se a RAM estiver cheia, remove a página mais antiga (FIFO)
-              if (filaDePaginas.length >= ramSize) {
-                const paginaRemovida = filaDePaginas.shift();
-                novaRam = novaRam.map((p) =>
-                  p === paginaRemovida ? null : p
+              if (filaDePaginas.size >= ramSize) {
+                const paginaRemovida = filaDePaginas.keys().next().value;
+                filaDePaginas.delete(paginaRemovida);
+                const indexRemovido = novaRam.findIndex(
+                  (p) =>
+                    p &&
+                    p.nomeDoProcesso === paginaRemovida.nomeDoProcesso &&
+                    p.indexNoProcesso === paginaRemovida.indexNoProcesso
                 );
+                novaRam[indexRemovido] = null;
               }
 
               // Adiciona a nova página na RAM e na fila
-              filaDePaginas.push(paginaAtual);
+              filaDePaginas.set(paginaAtual, clock);
               const indexLivre = novaRam.findIndex((p) => p === null);
               novaRam[indexLivre] = paginaAtual;
             }
@@ -518,14 +526,92 @@ function App() {
       setRam([...novaRam]);
 
       // Chama a função novamente após o intervalo
-      setTimeout(() => atualizarRam(clock + 1), interval);
+      setTimeout(() => interval);
     };
 
     // Inicia a atualização da RAM
     atualizarRam(0);
   };
 
-  
+  const handleCalcularEscalonamento = () => {
+    // Verifica e define valores default
+    if (!quantum) setQuantum(1);
+    if (sobrecarga === undefined) setSobrecarga(0);
+
+    // Atualiza os processos com valores default
+    const processosAtualizados = processos.map((processo, index) => {
+      const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
+      const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
+
+      return {
+        ...processo,
+        nomeDoProcesso: novoNome,
+        tempoDeChegada: processo.tempoDeChegada || 0,
+        tempoDeExecucao: processo.tempoDeExecucao || 1,
+        deadLine: processo.deadLine || 0,
+        clocks: processo.clocks || []
+      };
+    });
+
+    // Preenche o array disco
+    const novoDiscoArray = Array(120).fill(null);
+    let currentIndex = 0;
+
+    processosAtualizados.forEach(processo => {
+      for (let i = 0; i < processo.paginas; i++) {
+        if (currentIndex < 120) {
+          novoDiscoArray[currentIndex] = {
+            nomeDoProcesso: processo.nomeDoProcesso,
+            indexNoProcesso: i + 1,
+          };
+          currentIndex++;
+        }
+      }
+    });
+
+    setDisco(novoDiscoArray);
+    setProcessos(processosAtualizados);
+
+    // Executa o algoritmo após a atualização dos processos
+    setTimeout(() => {
+      switch (tipoDeAlgoritmo) {
+        case 'fifo':
+          calcularFIFO();
+          break;
+        case 'sjf':
+          calcularSJF();
+          break;
+        case 'rr':
+          calcularRoundRobin();
+          break;
+        case 'edf':
+          calcularEDF();
+          break;
+        default:
+          break;
+      }
+      setMostrarGrafico(true);
+    }, 0);
+
+    // Executa o algoritmo de paginação após o escalonamento
+    setTimeout(() => {
+      switch (algoritmoPaginacao) {
+        case 'fifo':
+          calcularPaginacaoFIFO();
+          break;
+        case 'lru':
+          calcularPaginacaoLRU();
+          break;
+        default:
+          break;
+      }
+    }, 100);
+
+    setTimeout(() => {
+      graficoRef.current?.animarLinha();
+    }, 200);
+  };
+
 
   return (
     <main>
@@ -692,92 +778,12 @@ function App() {
           }}
           className={algoritmoPaginacao === 'lru' ? 'active' : ''}
         >
-          SJF
+          LRU
         </button>
       </div>
       
       {/* Botão ativar cálculo */}
-      <button
-        className='basicButton'
-        onClick={() => {
-          // Verifica e define valores default
-          if (!quantum) setQuantum(1);
-          if (sobrecarga === undefined) setSobrecarga(0);
-
-          // Atualiza os processos com valores default
-          const processosAtualizados = processos.map((processo, index) => {
-            const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
-            const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
-
-            return {
-              ...processo,
-              nomeDoProcesso: novoNome,
-              tempoDeChegada: processo.tempoDeChegada || 0,
-              tempoDeExecucao: processo.tempoDeExecucao || 1,
-              deadLine: processo.deadLine || 0,
-              clocks: processo.clocks || []
-            };
-          });
-
-          // Preenche o array disco
-          const novoDiscoArray = Array(120).fill(null);
-          let currentIndex = 0;
-
-          processosAtualizados.forEach(processo => {
-            for (let i = 0; i < processo.paginas; i++) {
-              if (currentIndex < 120) {
-                novoDiscoArray[currentIndex] = {
-                  nomeDoProcesso: processo.nomeDoProcesso,
-                  indexNoProcesso: i + 1,
-                };
-                currentIndex++;
-              }
-            }
-          });
-
-          setDisco(novoDiscoArray);
-          setProcessos(processosAtualizados);
-
-          // Executa o algoritmo após a atualização dos processos
-          setTimeout(() => {
-            switch (tipoDeAlgoritmo) {
-              case 'fifo':
-                calcularFIFO();
-                break;
-              case 'sjf':
-                calcularSJF();
-                break;
-              case 'rr':
-                calcularRoundRobin();
-                break;
-              case 'edf':
-                calcularEDF();
-                break;
-              default:
-                break;
-            }
-            setMostrarGrafico(true);
-          }, 0);
-
-          // Executa o algoritmo de paginação após o escalonamento
-          setTimeout(() => {
-            switch (algoritmoPaginacao) {
-              case 'fifo':
-                calcularPaginacaoFIFO();
-                break;
-              case 'lru':
-                calcularPaginacaoLRU();
-                break;
-              default:
-                break;
-            }
-          }, 100);
-
-          setTimeout(() => {
-            graficoRef.current?.animarLinha();
-          }, 200);
-        }}
-      >
+      <button className='basicButton' onClick={handleCalcularEscalonamento}>
         Calcular Escalonamento
       </button>
 
@@ -804,7 +810,7 @@ function App() {
                     <p className='celProcName'>{e.nomeDoProcesso}</p>
                     <p className='celProcIndex'>{e.indexNoProcesso}</p>
                   </>
-                ) : <p>{index}</p>}
+                ) : <p>-</p>}
               </div>
             ))}
           </div>
@@ -818,26 +824,11 @@ function App() {
                   <p className='celProcName'>{e.nomeDoProcesso}</p>
                   <p className='celProcIndex'>{e.indexNoProcesso}</p>
                 </>
-              ) : <p>{index}</p>}
+              ) : <p>-</p>}
             </div>)}
           </div>
         </div>
       </div>)}
-
-
-      {/* REMOVER - Div temporária com os valores dos inputs dos processos */}
-     {/* {processos.length > 0 && (
-        <div className='proccessList'>
-          {processos.map((processo, index) => (
-            <p key={index}>
-              Processo {index + 1}: {JSON.stringify(processo)}
-            </p>
-          ))}
-          <p>{tipoDeAlgoritmo}</p>
-          <p>{sobrecarga}</p>
-          <p>{algoritmoPaginacao}</p>
-        </div>
-      )} */}
 
     </main>
   );
