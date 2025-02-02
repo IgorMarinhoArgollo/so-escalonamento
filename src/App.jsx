@@ -23,6 +23,12 @@ function App() {
   useEffect(() => { console.log(ram), console.log(mostrarGrafico) }, [ram, mostrarGrafico]);
 
   useEffect(() => {
+    if (processos.length > 0 && processos.some(p => p.clocks.length > 0)) {
+      calcularTurnaroundMedio(processos);
+    }
+  }, [processos]); // Sempre que `processos` mudar, recalcula o turnaround médio
+  
+  useEffect(() => {
     if (disco.length > 0 && processos.length > 0) {
       calcularPaginacaoFIFO();
     }
@@ -569,6 +575,7 @@ const handleCalcularEscalonamento = () => {
       clocks: processo.clocks || []
     };
   });
+  setProcessos(processosAtualizados);
 
   // Preenche o array disco
   const novoDiscoArray = Array(120).fill(null);
@@ -608,8 +615,7 @@ const handleCalcularEscalonamento = () => {
 
     setTimeout(() => {
       setMostrarGrafico(true);
-      calcularTurnaroundMedio(processosAtualizados);
-    }, 200); // Aguarda os processos serem atualizados antes de calcular o turnaround
+    }, 100); 
   }, 0);
 
   setTimeout(() => {
