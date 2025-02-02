@@ -14,6 +14,7 @@ function App() {
   const [tipoDeAlgoritmo, setTipoDeAlgoritmo] = useState('fifo')
   const [sobrecarga, setSobrecarga] = useState()
   const [mostrarGrafico, setMostrarGrafico] = useState(false);
+  const [turnaroundMedio, setTurnaroundMedio] = useState(0);
   const [animationTime, setAnimationTime] = useState(1);
   const [algoritmoPaginacao, setAlgoritmoPaginacao] = useState('fifo');
   const [disco, setDisco] = useState(Array(100).fill(null));
@@ -533,6 +534,19 @@ function App() {
     atualizarRam(0);
   };
 
+  const calcularTurnaroundMedio = (processosCalculados) => {
+    let somaTurnaround = 0;
+    let totalProcessos = processosCalculados.length;
+
+    processosCalculados.forEach(processo => {
+        const tempoFinalizacao = processo.clocks.length;
+        const turnaround = tempoFinalizacao - processo.tempoDeChegada;
+        somaTurnaround += turnaround;
+    });
+
+    setTurnaroundMedio(somaTurnaround / totalProcessos);
+};
+
   const handleCalcularEscalonamento = () => {
     // Verifica e define valores default
     if (!quantum) setQuantum(1);
@@ -591,6 +605,11 @@ function App() {
           break;
       }
       setMostrarGrafico(true);
+      
+      setTimeout(() => {
+        calcularTurnaroundMedio(processosAtualizados);
+    }, 500);
+    
     }, 0);
 
     // Executa o algoritmo de paginação após o escalonamento
@@ -787,6 +806,8 @@ function App() {
         Calcular Escalonamento
       </button>
 
+      <h3>Turnaround Médio: {turnaroundMedio.toFixed(2)}</h3>
+      
       {/* gráfico */}
       {(processos.length > 0 && processos[0].clocks && mostrarGrafico) && (
         <div className="gantt-container">
