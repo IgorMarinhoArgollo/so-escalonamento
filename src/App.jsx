@@ -537,100 +537,98 @@ function App() {
   const calcularTurnaroundMedio = (processosCalculados) => {
     let somaTurnaround = 0;
     let totalProcessos = processosCalculados.length;
-
-    processosCalculados.forEach(processo => {
-        const tempoFinalizacao = processo.clocks.length;
-        const turnaround = tempoFinalizacao - processo.tempoDeChegada;
+  
+    processosCalculados.forEach((processo) => {
+      const tempoFinalizacao = processo.clocks.lastIndexOf('executando') + 1; // Último índice onde executou
+      if (tempoFinalizacao > 0) {
+        const turnaround = tempoFinalizacao - processo.tempoDeChegada; // Calcula turnaround corretamente
         somaTurnaround += turnaround;
-    });
-
-    setTurnaroundMedio(somaTurnaround / totalProcessos);
-};
-
-  const handleCalcularEscalonamento = () => {
-    // Verifica e define valores default
-    if (!quantum) setQuantum(1);
-    if (sobrecarga === undefined) setSobrecarga(0);
-
-    // Atualiza os processos com valores default
-    const processosAtualizados = processos.map((processo, index) => {
-      const letra = String.fromCharCode(65 + index); // Converte 0->A, 1->B, 2->C, etc.
-      const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
-
-      return {
-        ...processo,
-        nomeDoProcesso: novoNome,
-        tempoDeChegada: processo.tempoDeChegada || 0,
-        tempoDeExecucao: processo.tempoDeExecucao || 1,
-        deadLine: processo.deadLine || 0,
-        clocks: processo.clocks || []
-      };
-    });
-
-    // Preenche o array disco
-    const novoDiscoArray = Array(120).fill(null);
-    let currentIndex = 0;
-
-    processosAtualizados.forEach(processo => {
-      for (let i = 0; i < processo.paginas; i++) {
-        if (currentIndex < 120) {
-          novoDiscoArray[currentIndex] = {
-            nomeDoProcesso: processo.nomeDoProcesso,
-            indexNoProcesso: i + 1,
-          };
-          currentIndex++;
-        }
       }
     });
+  
+    const media = totalProcessos > 0 ? somaTurnaround / totalProcessos : 0;
+    setTurnaroundMedio(media);
+  };  
 
-    setDisco(novoDiscoArray);
-    setProcessos(processosAtualizados);
+const handleCalcularEscalonamento = () => {
+  // Verifica e define valores default
+  if (!quantum) setQuantum(1);
+  if (sobrecarga === undefined) setSobrecarga(0);
 
-    // Executa o algoritmo após a atualização dos processos
+  // Atualiza os processos com valores default
+  const processosAtualizados = processos.map((processo, index) => {
+    const letra = String.fromCharCode(65 + index);
+    const novoNome = !processo.nomeDoProcesso || processo.nomeDoProcesso.trim() === '' ? letra : processo.nomeDoProcesso;
+
+    return {
+      ...processo,
+      nomeDoProcesso: novoNome,
+      tempoDeChegada: processo.tempoDeChegada || 0,
+      tempoDeExecucao: processo.tempoDeExecucao || 1,
+      deadLine: processo.deadLine || 0,
+      clocks: processo.clocks || []
+    };
+  });
+
+  // Preenche o array disco
+  const novoDiscoArray = Array(120).fill(null);
+  let currentIndex = 0;
+  processosAtualizados.forEach((processo) => {
+    for (let i = 0; i < processo.paginas; i++) {
+      if (currentIndex < 120) {
+        novoDiscoArray[currentIndex] = {
+          nomeDoProcesso: processo.nomeDoProcesso,
+          indexNoProcesso: i + 1
+        };
+        currentIndex++;
+      }
+    }
+  });
+
+  setDisco(novoDiscoArray);
+  setProcessos(processosAtualizados);
+
+  setTimeout(() => {
+    switch (tipoDeAlgoritmo) {
+      case 'fifo':
+        calcularFIFO();
+        break;
+      case 'sjf':
+        calcularSJF();
+        break;
+      case 'rr':
+        calcularRoundRobin();
+        break;
+      case 'edf':
+        calcularEDF();
+        break;
+      default:
+        break;
+    }
+
     setTimeout(() => {
-      switch (tipoDeAlgoritmo) {
-        case 'fifo':
-          calcularFIFO();
-          break;
-        case 'sjf':
-          calcularSJF();
-          break;
-        case 'rr':
-          calcularRoundRobin();
-          break;
-        case 'edf':
-          calcularEDF();
-          break;
-        default:
-          break;
-      }
       setMostrarGrafico(true);
-      
-      setTimeout(() => {
-        calcularTurnaroundMedio(processosAtualizados);
-    }, 500);
-    
-    }, 0);
+      calcularTurnaroundMedio(processosAtualizados);
+    }, 200); // Aguarda os processos serem atualizados antes de calcular o turnaround
+  }, 0);
 
-    // Executa o algoritmo de paginação após o escalonamento
-    setTimeout(() => {
-      switch (algoritmoPaginacao) {
-        case 'fifo':
-          calcularPaginacaoFIFO();
-          break;
-        case 'lru':
-          calcularPaginacaoLRU();
-          break;
-        default:
-          break;
-      }
-    }, 100);
+  setTimeout(() => {
+    switch (algoritmoPaginacao) {
+      case 'fifo':
+        calcularPaginacaoFIFO();
+        break;
+      case 'lru':
+        calcularPaginacaoLRU();
+        break;
+      default:
+        break;
+    }
+  }, 300);
 
-    setTimeout(() => {
-      graficoRef.current?.animarLinha();
-    }, 200);
-  };
-
+  setTimeout(() => {
+    graficoRef.current?.animarLinha();
+  }, 400);
+};
 
   return (
     <main>
