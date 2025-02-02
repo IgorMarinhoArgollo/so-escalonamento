@@ -49,7 +49,7 @@ npm install
 
 4️⃣ Inicie o projeto:
 ```sh
-npm start
+npm run dev
 ```
 
 🔹 O projeto estará rodando em **http://localhost:3000**
