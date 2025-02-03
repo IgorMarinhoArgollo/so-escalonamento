@@ -1,4 +1,5 @@
 # 🔄 Escalonador de Processos com Paginação
+https://escalonadorso.netlify.app/
 
 Este projeto implementa um **escalonador de processos** com diferentes algoritmos de **escalonamento de CPU** e **paginação de memória**, permitindo a visualização do processamento e troca de páginas em tempo real.
 
