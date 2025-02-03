@@ -52,7 +52,7 @@ npm install
 npm run dev
 ```
 
-🔹 O projeto estará rodando em **http://localhost:3000**
+🔹 Uma mensagem aparecerá com o endpoint em que o sistema estará esperando por conexões web. E.g. `http://localhost:5173/`.
 
 ---
 
